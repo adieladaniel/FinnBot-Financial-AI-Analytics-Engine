@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Analytics Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="icon" href="/static/logo2.png">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <div class="app-container">
+
+    <div class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">A</div>
+        <div class="brand-text">
+          <span class="brand-name">Analytix</span>
+          <span class="brand-sub">Intelligence Suite</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item active" href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Query Console
+        </a>
+        <a class="nav-item" href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Reports
+        </a>
+        <a class="nav-item" href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          History
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="session-info" id="sessionInfo">
+          <span class="dot dot--idle"></span>
+          No dataset loaded
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Query Console</h1>
+          <span class="page-sub">Upload a dataset, then query it in plain English</span>
+        </div>
+        <div class="topbar-right">
+          <div class="upload-row">
+
+            <!-- FILE UPLOAD -->
+            <label class="file-label" for="fileInput">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span id="fileLabel">Choose file</span>
+            </label>
+
+            <input type="file" id="fileInput" onchange="updateFileLabel()" />
+            <button class="btn-primary" onclick="uploadDataset()">Load Dataset</button>
+
+            <!-- NEW: API BUTTON -->
+            <button class="btn-primary" onclick="toggleApiBox()">Use API</button>
+
+          </div>
+        </div>
+      </div>
+
+      <div id="apiLoadingBox" class="api-loading-box" style="display:none;">
+        <div class="loading-row">
+          <span class="spinner"></span>
+          <span id="apiLoadingText">Starting API fetch...</span>
+          <span id="apiElapsedTime">0s</span>
+        </div>
+
+        <div class="progress-track">
+          <div class="progress-bar"></div>
+        </div>
+      </div>
+
+      <div id="datasetSummary" class="dataset-summary"></div>
+
+      <div id="datasetDetailsBox" class="dataset-details-box" style="display:none;">
+        <button class="btn-secondary" onclick="toggleDatasetDetails()">View Dataset Details</button>
+
+        <div id="datasetDetailsContent" class="dataset-details-content" style="display:none;"></div>
+      </div>
+
+      <div id="apiBox" style="display:none; padding: 12px 28px; background:#fff; border-bottom:1px solid #e2dfd8;">
+
+        <textarea id="curlInput"
+          placeholder="Paste your cURL command here..."
+          style="width:100%; height:90px; margin-bottom:8px;"></textarea>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="maxPagesInput" type="number" value="1" min="1" style="width:80px;" />
+          <button class="btn-primary" onclick="uploadFromApi()">Fetch API Data</button>
+          <span id="apiStatus" style="font-size:12px;"></span>
+        </div>
+
+      </div>
+
+      <div id="chatBox" class="chat-box">
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          </div>
+          <p class="empty-title">No active session</p>
+          <p class="empty-hint">Load a CSV or Excel dataset above to begin querying</p>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input
+          id="questionInput"
+          placeholder="e.g. Show top 10 students with highest pending fees"
+          onkeydown="handleEnter(event)"
+        />
+        <button id="sendBtn" onclick="sendMessage()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Run Query
+        </button>
+      </div>
+
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/script.js?v=6"></script>
+  <script>
+    function updateFileLabel() {
+      const file = document.getElementById("fileInput").files[0];
+      if (file) {
+        document.getElementById("fileLabel").textContent = file.name;
+      }
+    }
+  </script>
+  
+</body>
+</html>
