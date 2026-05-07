@@ -17,12 +17,7 @@ from core.context import refine_question_with_context
 from core.llm_fallback import call_gemini_planner, gemini_available 
 from core.config_loader import load_domain_config
 from core.api_loader import fetch_api_data_from_curl
-# from core.context_engine import (
-#     init_context_memory,
-#     refine_question_with_context,
-#     update_context_memory
-# )
-
+from core.date_filter import add_date_filter_to_plan, add_month_comparison_to_plan
 
 app = FastAPI()
 
@@ -203,6 +198,9 @@ async def chat(req: ChatRequest):
     )
 
     plan = build_plan(refined_question, df, schema, measures, domain_config)
+    plan = add_date_filter_to_plan(plan, refined_question, df)
+    plan = add_month_comparison_to_plan(plan, refined_question, df)
+
 
     if context_data.get("carry_measure"):
 
@@ -331,6 +329,11 @@ async def chat(req: ChatRequest):
                 elif gemini_plan.get("task") == "single_value_multi":
                     gemini_plan["task"] = "single_value"
 
+
+            gemini_plan = add_date_filter_to_plan(gemini_plan, req.question, df)
+
+            gemini_plan = add_month_comparison_to_plan(gemini_plan, req.question, df)
+            
             plan = gemini_plan
             result = execute_plan(plan, df, measures)
             source = "gemini_fallback"

@@ -27,6 +27,20 @@ def apply_filters(data: pd.DataFrame, filters: list[dict]):
         if column not in filtered.columns:
             continue
 
+        if operator == "date_between" and len(values) == 2:
+            start = pd.to_datetime(values[0], errors="coerce")
+            end = pd.to_datetime(values[1], errors="coerce")
+
+            col_dates = pd.to_datetime(filtered[column], errors="coerce")
+
+            filtered = filtered[
+                (col_dates >= start) &
+                (col_dates <= end)
+            ]
+
+            continue
+
+
         if operator == "eq" and values:
             val = values[0]
 
@@ -126,6 +140,29 @@ def _normalize_plan_shapes(plan: dict):
 
 def execute_plan(plan: dict, df, measures: dict):
     plan = _normalize_plan_shapes(plan)
+
+
+    if plan.get("month_comparison"):
+        mc = plan["month_comparison"]
+        date_col = mc["date_column"]
+        buckets = mc["buckets"]
+
+        df = df.copy()
+        df["_month_bucket"] = None
+
+        col_dates = pd.to_datetime(df[date_col], errors="coerce")
+
+        for bucket in buckets:
+            start = pd.to_datetime(bucket["start"])
+            end = pd.to_datetime(bucket["end"])
+            label = bucket["label"]
+
+            df.loc[
+                (col_dates >= start) & (col_dates <= end),
+                "_month_bucket"
+            ] = label
+
+        df = df[df["_month_bucket"].notna()]
 
     data = apply_filters(df, plan.get("filters", []))
 

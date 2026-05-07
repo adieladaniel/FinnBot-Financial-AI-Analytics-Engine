@@ -147,19 +147,22 @@ def resolve_entity(q, schema, domain_config=None):
 def resolve_measure(q, measures, domain_config):
     q = normalize_text(q)
     finance_priority = [
-        ("outstanding", "outstanding_fee"),
-        ("pending", "outstanding_fee"),
-        ("due", "outstanding_fee"),
-        ("balance", "outstanding_fee"),
-        ("waiver", "waiver_amount"),
-        ("concession", "concession_amount"),
-        ("paid", "paid_amount")
+        (["received", "collection", "collected", "fees received", "fee received"], "received_amount"),
+        (["paid", "payment received", "payments received"], "received_amount"),
+        (["outstanding", "pending", "due", "balance"], "outstanding_fee"),
+        (["concession"], "concession_amount"),
+        (["waiver"], "waiver_amount"),
+        (["payable"], "payable_amount"),
+        (["total fee amount", "total fees demand", "fee demand"], "total_fee_amount")
     ]
 
-    for keyword, measure_name in finance_priority:
-        if keyword in q:
-            if f"Sum {measure_name}" in measures:
-                return f"Sum {measure_name}", 0.99
+    for keywords, col in finance_priority:
+        if any(k in q for k in keywords):
+            measure_name = f"Sum {col}"
+            if measure_name in measures:
+                return measure_name, 0.99
+            
+            
     vocab = build_measure_vocab(measures)
 
     semantic_aliases = domain_config.get("semantic_aliases", {})
