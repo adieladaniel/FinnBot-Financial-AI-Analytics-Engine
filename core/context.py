@@ -24,7 +24,10 @@ def refine_question_with_context(question, session, domain_config):
         "refined_question": question,
         "extra_filters": [],
         "force_group_by": None,
-        "force_limit": None
+        "force_limit": None,
+        "carry_measure": None,
+        "carry_sort_order": None,
+        "carry_task": None
     }
 
     singular_terms = [
@@ -90,9 +93,14 @@ def refine_question_with_context(question, session, domain_config):
             result["force_limit"] = len(values)
 
             if new_measure_word:
-                result["refined_question"] = f"show top {len(values)} by {new_measure_word}"
+                result["carry_measure"] = new_measure_word
             elif last_measure:
-                result["refined_question"] = f"show top {len(values)} by {last_measure}"
+                result["carry_measure"] = last_measure
+
+            result["carry_sort_order"] = "desc"
+            result["carry_task"] = "grouped_table"
+
+            result["refined_question"] = question
 
             return result
 
@@ -117,7 +125,12 @@ def refine_question_with_context(question, session, domain_config):
 
             result["force_group_by"] = last_group_by
             result["force_limit"] = len(last_entity_values)
-            result["refined_question"] = f"show top {len(last_entity_values)} by {new_measure_word}"
+            # result["refined_question"] = f"show top {len(last_entity_values)} by {new_measure_word}"
+            result["carry_measure"] = new_measure_word
+            result["carry_sort_order"] = "desc"
+            result["carry_task"] = "grouped_table"
+
+            result["refined_question"] = question
 
             return result
 

@@ -17,6 +17,12 @@ from core.context import refine_question_with_context
 from core.llm_fallback import call_gemini_planner, gemini_available 
 from core.config_loader import load_domain_config
 from core.api_loader import fetch_api_data_from_curl
+# from core.context_engine import (
+#     init_context_memory,
+#     refine_question_with_context,
+#     update_context_memory
+# )
+
 
 app = FastAPI()
 
@@ -188,7 +194,50 @@ async def chat(req: ChatRequest):
     context_data = refine_question_with_context(req.question, session, domain_config)
     refined_question = context_data["refined_question"]
 
+    context_used = bool(
+        context_data.get("extra_filters")
+        or context_data.get("force_group_by")
+        or context_data.get("force_limit")
+        or context_data.get("carry_measure")
+        or context_data.get("carry_task")
+    )
+
     plan = build_plan(refined_question, df, schema, measures, domain_config)
+
+    if context_data.get("carry_measure"):
+
+        carry_measure = str(context_data["carry_measure"]).lower().strip()
+
+        matched_measure = None
+
+        for m in measures.keys():
+            ml = m.lower()
+
+            if carry_measure in ml:
+                matched_measure = m
+                break
+
+            if carry_measure == "waiver" and "waiver_amount" in ml:
+                matched_measure = m
+                break
+
+            if carry_measure == "concession" and "concession_amount" in ml:
+                matched_measure = m
+                break
+
+            if carry_measure in ["pending", "balance", "outstanding"] and "outstanding_fee" in ml:
+                matched_measure = m
+                break
+
+        if matched_measure:
+            plan["measure"] = matched_measure
+            plan["sort_by"] = matched_measure
+
+    if context_data.get("carry_task"):
+        plan["task"] = context_data["carry_task"]
+
+    if context_data.get("carry_sort_order"):
+        plan["sort_order"] = context_data["carry_sort_order"]
 
     if context_data["extra_filters"]:
         existing_filters = plan.get("filters", [])
@@ -226,7 +275,7 @@ async def chat(req: ChatRequest):
         use_fallback = True
 
     # Let rule-based multi-measure plans pass more easily
-    if not is_multi_measure:
+    if not context_used and not is_multi_measure:
         if confidence < 0.68:
             use_fallback = True
 
@@ -236,6 +285,10 @@ async def chat(req: ChatRequest):
     semantic_phrases = domain_config.get("semantic_phrases_for_fallback", [])
     if any(p in req.question.lower() for p in semantic_phrases):
         use_fallback = True
+
+    if context_used:
+        use_fallback = False
+        confidence = max(confidence, 0.90)
 
     source = "rule_based"
 
