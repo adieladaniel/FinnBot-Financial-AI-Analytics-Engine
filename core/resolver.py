@@ -101,10 +101,21 @@ def is_multi_measure_query(q: str):
 def resolve_entity(q, schema, domain_config=None):
     q = normalize_text(q)
     vocab = build_dimension_vocab(schema)
-    if any(word in q for word in ["student", "students"]):
-        if "student_display" in schema.get("dimensions", []):
-            return "student_display", 0.98
+    # if any(word in q for word in ["student", "students"]):
+    #     if "student_display" in schema.get("dimensions", []):
+    #         return "student_display", 0.98
         
+    if any(word in q for word in ["student", "students"]):
+
+        preferred_student_cols = [
+            "student_display",
+            "student_name",
+            "studentname"
+        ]
+
+        for col in preferred_student_cols:
+            if col in schema.get("dimensions", []):
+                return col, 0.99
             
     exact_hits = []
     for phrase, col in vocab.items():
@@ -135,6 +146,20 @@ def resolve_entity(q, schema, domain_config=None):
 
 def resolve_measure(q, measures, domain_config):
     q = normalize_text(q)
+    finance_priority = [
+        ("outstanding", "outstanding_fee"),
+        ("pending", "outstanding_fee"),
+        ("due", "outstanding_fee"),
+        ("balance", "outstanding_fee"),
+        ("waiver", "waiver_amount"),
+        ("concession", "concession_amount"),
+        ("paid", "paid_amount")
+    ]
+
+    for keyword, measure_name in finance_priority:
+        if keyword in q:
+            if f"Sum {measure_name}" in measures:
+                return f"Sum {measure_name}", 0.99
     vocab = build_measure_vocab(measures)
 
     semantic_aliases = domain_config.get("semantic_aliases", {})

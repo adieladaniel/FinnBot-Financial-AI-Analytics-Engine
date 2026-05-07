@@ -179,6 +179,11 @@ def execute_plan(plan: dict, df, measures: dict):
         measure_col = measure_def["column"]
         agg = measure_def["agg"]
 
+        filtered_data[measure_col] = pd.to_numeric(
+            filtered_data[measure_col],
+            errors="coerce"
+        ).fillna(0)
+
         grouped = (
             filtered_data
             .groupby(group_by, dropna=False)[measure_col]
@@ -273,14 +278,84 @@ def execute_plan(plan: dict, df, measures: dict):
         return {"answer": "No matching rows found.", "rows": []}
 
     if task == "count":
+
+        filters = plan.get("filters", [])
+
+        # SIMPLE TOTAL COUNT
         if group_by:
+
             col = group_by[0]
-            if col in data.columns:
-                count = int(data[col].nunique())
-            else:
-                count = 0
+
+            if col not in df.columns:
+                return {
+                    "answer": "Count: 0",
+                    "rows": []
+                }
+
+            # NO MEASURE FILTERS → DISTINCT COUNT
+            if not filters or not measure or measure not in measures:
+
+                count = int(df[col].nunique())
+
+                return {
+                    "answer": f"Count: {count}",
+                    "rows": []
+                }
+
+            # FINANCE AGGREGATED COUNT
+            measure_def = measures[measure]
+            measure_col = measure_def["column"]
+            agg = measure_def["agg"]
+
+            count_data = df.copy()
+            count_data[measure_col] = pd.to_numeric(
+                count_data[measure_col],
+                errors="coerce"
+            ).fillna(0)
+
+            grouped = (
+                count_data
+                .groupby(group_by, dropna=False)[measure_col]
+                .agg(agg)
+                .reset_index()
+            )
+
+            grouped = grouped.rename(columns={measure_col: measure})
+
+            # APPLY FILTERS AFTER AGGREGATION
+            for f in filters:
+
+                f_col = f.get("column")
+                op = f.get("operator")
+                values = f.get("values", [])
+
+                if not values:
+                    continue
+
+                val = values[0]
+
+                if f_col != measure_col:
+                    continue
+
+                if op == "eq":
+                    grouped = grouped[grouped[measure] == val]
+
+                elif op == "gt":
+                    grouped = grouped[grouped[measure] > val]
+
+                elif op == "lt":
+                    grouped = grouped[grouped[measure] < val]
+
+                elif op == "gte":
+                    grouped = grouped[grouped[measure] >= val]
+
+                elif op == "lte":
+                    grouped = grouped[grouped[measure] <= val]
+
+            count = int(grouped[group_by[0]].nunique())
+
         else:
-            count = int(len(data))
+            count = int(len(df))
 
         return {
             "answer": f"Count: {count}",

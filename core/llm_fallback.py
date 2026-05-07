@@ -89,6 +89,46 @@ def enforce_finance_plan_rules(plan, schema, question):
                 "values": [0]
             })
 
+    normalized_filters = []
+
+    for f in plan.get("filters", []):
+
+        if not isinstance(f, dict):
+            continue
+
+        # Gemini sometimes sends dimension instead of column
+        if "dimension" in f and "column" not in f:
+            f["column"] = f["dimension"]
+
+        # remove Sum prefix
+        if "column" in f and isinstance(f["column"], str):
+            f["column"] = (
+                f["column"]
+                .replace("Sum ", "")
+                .replace("Avg ", "")
+                .strip()
+            )
+
+        # Gemini sends value instead of values
+        if "value" in f and "values" not in f:
+            f["values"] = [f["value"]]
+
+        # normalize operators
+        op_map = {
+            "=": "eq",
+            ">": "gt",
+            "<": "lt",
+            ">=": "gte",
+            "<=": "lte"
+        }
+
+        if f.get("operator") in op_map:
+            f["operator"] = op_map[f["operator"]]
+
+        normalized_filters.append(f)
+
+    plan["filters"] = normalized_filters
+
     return plan
 
 def call_gemini_planner(question, schema, measures, context=None):

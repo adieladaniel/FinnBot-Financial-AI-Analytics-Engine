@@ -13,3 +13,4 @@ def load_dataset(file_path: str):
         return pd.read_excel(path)
     
     return ValueError(f"Unsupported File Type: {suffix}")
+

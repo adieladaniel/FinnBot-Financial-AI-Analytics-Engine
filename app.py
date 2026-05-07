@@ -54,30 +54,55 @@ class ApiUploadRequest(BaseModel):
 def prepare_dataset_session(df, dataset_name):
     session_id = str(uuid.uuid4())
 
-    if {"studentname", "classname", "sectionname"}.issubset(df.columns):
+
+    if {"student_name", "class", "section", "admission_number"}.issubset(df.columns):
+
         df["student_display"] = (
-            df["studentname"].astype(str).str.strip()
+            df["student_name"].fillna("").astype(str).str.strip()
             + " - " +
-            df["classname"].astype(str).str.strip()
+            df["class"].fillna("").astype(str).str.strip()
             + " - " +
-            df["sectionname"].astype(str).str.strip()
+            df["section"].fillna("").astype(str).str.strip()
+            + " - " +
+            df["admission_number"].fillna("").astype(str).str.strip()
         )
 
-    elif {"student_name", "class", "section"}.issubset(df.columns):
+    elif {"studentname", "classname", "sectionname", "admissionno"}.issubset(df.columns):
+
         df["student_display"] = (
-            df["student_name"].astype(str).str.strip()
+            df["studentname"].fillna("").astype(str).str.strip()
             + " - " +
-            df["class"].astype(str).str.strip()
+            df["classname"].fillna("").astype(str).str.strip()
             + " - " +
-            df["section"].astype(str).str.strip()
+            df["sectionname"].fillna("").astype(str).str.strip()
+            + " - " +
+            df["admissionno"].fillna("").astype(str).str.strip()
         )
 
-    elif {"student_name", "admission_number"}.issubset(df.columns):
-        df["student_display"] = (
-            df["student_name"].astype(str).str.strip()
-            + " - " +
-            df["admission_number"].astype(str).str.strip()
-        )
+    # if {"studentname", "classname", "sectionname"}.issubset(df.columns):
+    #     df["student_display"] = (
+    #         df["studentname"].astype(str).str.strip()
+    #         + " - " +
+    #         df["classname"].astype(str).str.strip()
+    #         + " - " +
+    #         df["sectionname"].astype(str).str.strip()
+    #     )
+
+    # elif {"student_name", "class", "section"}.issubset(df.columns):
+    #     df["student_display"] = (
+    #         df["student_name"].astype(str).str.strip()
+    #         + " - " +
+    #         df["class"].astype(str).str.strip()
+    #         + " - " +
+    #         df["section"].astype(str).str.strip()
+    #     )
+
+    # elif {"student_name", "admission_number"}.issubset(df.columns):
+    #     df["student_display"] = (
+    #         df["student_name"].astype(str).str.strip()
+    #         + " - " +
+    #         df["admission_number"].astype(str).str.strip()
+    #     )
 
     profile = profile_dataset(df)
     schema = build_schema(dataset_name, profile)
