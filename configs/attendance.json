@@ -1,0 +1,59 @@
+{
+  "semantic_aliases": {
+    "attended": "total_attended",
+    "present": "total_attended",
+    "lectures attended": "total_attended",
+    "classes attended": "total_attended",
+    "attendance": "total_attended",
+    "total lectures": "total_delivered",
+    "delivered": "total_delivered",
+    "lectures delivered": "total_delivered",
+    "total classes": "total_delivered",
+    "percentage": "attendance_percentage",
+    "attendance percentage": "attendance_percentage",
+    "percent": "attendance_percentage",
+    "overall attendance": "attendance_percentage",
+    "status": "attendance_status",
+    "defaulter": "attendance_status",
+    "regular": "attendance_status"
+  },
+  "zero_value_phrases": {
+    "total_attended": [
+      "0 attendance",
+      "zero attendance",
+      "no classes attended",
+      "didn't attend any class",
+      "attended 0 classes",
+      "present for 0 days",
+      "has not attended any classes",
+      "absent for all classes"
+    ],
+    "attendance_percentage": [
+      "0 percent",
+      "0%",
+      "zero percent attendance",
+      "0 percent attendance"
+    ]
+  },
+  "semantic_phrases_for_fallback": [
+    "short attendance",
+    "attendance defaulters",
+    "poor attendance",
+    "not attending classes",
+    "irregular students",
+    "frequently absent",
+    "most absent",
+    "at risk of debarment",
+    "debarred students",
+    "lowest attendance",
+    "struggling to attend"
+  ],
+  "context_measure_words": {
+    "attended": "total_attended",
+    "present": "total_attended",
+    "total": "total_delivered",
+    "delivered": "total_delivered",
+    "percentage": "attendance_percentage"
+  },
+  "ignore_aliases_for_comparison": []
+}
