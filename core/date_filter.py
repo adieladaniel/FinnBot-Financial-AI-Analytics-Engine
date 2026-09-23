@@ -148,7 +148,24 @@ def add_date_filter_to_plan(plan, question, df):
     if not date_col:
         return plan
 
-    filters = plan.get("filters", [])
+    # This filter is the authoritative date constraint for the question, so
+    # drop anything already on the plan that targets the same concept —
+    # a duplicate/conflicting date_between, a direct filter on date_col
+    # itself, or an LLM-guessed eq filter on a date/period-ish column name
+    # (e.g. "periodname" == "March") that can't reliably match real values
+    # it never actually saw.
+    filters = []
+    for f in plan.get("filters", []):
+        col = str(f.get("column") or "").lower()
+
+        if f.get("operator") == "date_between":
+            continue
+        if col == date_col.lower():
+            continue
+        if f.get("operator") == "eq" and any(k in col for k in DATE_KEYWORDS):
+            continue
+
+        filters.append(f)
 
     filters.append({
         "column": date_col,

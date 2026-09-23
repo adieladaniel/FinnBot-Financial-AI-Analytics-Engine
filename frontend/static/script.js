@@ -16,33 +16,45 @@ async function uploadDataset() {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch("/upload", {
-    method: "POST",
-    body: formData
-  });
+  const btn = document.getElementById("loadDatasetBtn");
+  const originalBtnHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>Loading…`;
 
-  const data = await res.json();
-  sessionId = data.session_id;
-  window.sessionId = data.session_id;
+  try {
+    const res = await fetch("/upload", {
+      method: "POST",
+      body: formData
+    });
 
-  document.getElementById("datasetSummary").innerHTML = `
-    <p><strong>Rows:</strong> ${data.rows}</p>
-    <p><strong>Dimensions:</strong> ${data.dimensions.join(", ")}</p>
-    <p><strong>Measures:</strong> ${data.measures.join(", ")}</p>
-  `;
+    const data = await res.json();
+    sessionId = data.session_id;
+    window.sessionId = data.session_id;
 
-  // Update sidebar session indicator
-  const info = document.getElementById("sessionInfo");
-  if (info) {
-    info.innerHTML = `<span class="dot dot--active"></span>${file.name}`;
+    document.getElementById("datasetSummary").innerHTML = `
+      <p><strong>Rows:</strong> ${data.rows}</p>
+      <p><strong>Dimensions:</strong> ${data.dimensions.join(", ")}</p>
+      <p><strong>Measures:</strong> ${data.measures.join(", ")}</p>
+    `;
+
+    // Update sidebar session indicator
+    const info = document.getElementById("sessionInfo");
+    if (info) {
+      info.innerHTML = `<span class="dot dot--active"></span>${file.name}`;
+    }
+
+    // Remove empty state
+    const empty = document.querySelector('.empty-state');
+    if (empty) empty.remove();
+
+    addBotMessage("Dataset uploaded successfully. You can start asking. IF NO IDEA try seeing the search bar. .");
+  } catch (err) {
+    addBotMessage("Something went wrong while uploading the dataset.");
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalBtnHtml;
   }
-
-  // Remove empty state
-  const empty = document.querySelector('.empty-state');
-  if (empty) empty.remove();
-
-  addBotMessage("Dataset uploaded successfully. Puch le ab .");
-  
 }
 
 function handleEnter(event) {
@@ -193,6 +205,106 @@ function retryLastQuestion() {
   sendMessage(lastQuestion);
 }
 
+function showConsoleTab(event) {
+  if (event) event.preventDefault();
+
+  document.getElementById("navConsole").classList.add("active");
+  document.getElementById("navHistory").classList.remove("active");
+
+  document.getElementById("historyPanel").style.display = "none";
+  document.getElementById("chatBox").style.display = "flex";
+  document.querySelector(".input-area").style.display = "flex";
+
+  document.getElementById("pageTitle").textContent = "Query Console";
+  document.getElementById("pageSub").textContent = "Upload a dataset, then query it in plain English";
+}
+
+async function showHistoryTab(event) {
+  if (event) event.preventDefault();
+
+  document.getElementById("navHistory").classList.add("active");
+  document.getElementById("navConsole").classList.remove("active");
+
+  document.getElementById("chatBox").style.display = "none";
+  document.querySelector(".input-area").style.display = "none";
+  document.getElementById("historyPanel").style.display = "flex";
+
+  document.getElementById("pageTitle").textContent = "History";
+  document.getElementById("pageSub").textContent = "Past queries from this session";
+
+  await loadHistory();
+}
+
+async function loadHistory() {
+  const panel = document.getElementById("historyPanel");
+
+  if (!sessionId) {
+    panel.innerHTML = `
+      <div class="empty-state">
+        <p class="empty-title">No dataset loaded</p>
+        <p class="empty-hint">Upload a dataset and ask a question to build history</p>
+      </div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = `<div class="loading"><span class="spinner"></span><span>Loading history…</span></div>`;
+
+  try {
+    const res = await fetch(`/history/${sessionId}`);
+    const data = await res.json();
+    const items = data.history || [];
+
+    if (items.length === 0) {
+      panel.innerHTML = `
+        <div class="empty-state">
+          <p class="empty-title">No queries yet</p>
+          <p class="empty-hint">Ask something in Query Console to see it here</p>
+        </div>
+      `;
+      return;
+    }
+
+    panel.innerHTML = items.map(item => {
+      const time = item.timestamp
+        ? new Date(item.timestamp * 1000).toLocaleTimeString()
+        : "";
+
+      const confidenceBadge =
+        typeof item.confidence === "number"
+          ? `<span class="badge conf">Confidence: ${item.confidence}</span>`
+          : "";
+
+      return `
+        <div class="history-item">
+          <div class="history-item-time">${time}</div>
+          <div class="history-item-q">${escapeHtml(item.question)}</div>
+          <div class="history-item-a">${escapeHtml(item.answer || "")}</div>
+          <div class="status-row">
+            ${getSourceBadge(item.source)}
+            ${confidenceBadge}
+          </div>
+          <div class="retry-wrap">
+            <button class="retry-btn" data-q="${escapeHtml(item.question)}" onclick="rerunFromHistory(this)">↺ Ask again</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (err) {
+    panel.innerHTML = `<div class="empty-state"><p class="empty-title">Could not load history</p></div>`;
+    console.error(err);
+  }
+}
+
+function rerunFromHistory(btn) {
+  const question = btn.getAttribute("data-q");
+  if (!question) return;
+
+  showConsoleTab();
+  addUserMessage(question);
+  sendMessage(question);
+}
+
 function addBotResponse(data) {
   const chatBox = document.getElementById("chatBox");
   const div = document.createElement("div");
@@ -274,12 +386,10 @@ function detectChartType(question, rows) {
   if (q.includes("pie")) return "pie";
   if (q.includes("bar")) return "bar";
 
-  if (!rows || rows.length === 0) return null;
+  const chartInfo = getChartColumns(rows);
+  if (!chartInfo) return null;
 
-  const headers = Object.keys(rows[0]);
-  const numericCols = headers.filter(h => rows.some(r => !isNaN(Number(r[h]))));
-
-  if (numericCols.length === 1 && rows.length <= 8) {
+  if (chartInfo.numericCols.length === 1 && rows.length <= 8) {
     return "pie";
   }
 
@@ -291,12 +401,21 @@ function getChartColumns(rows) {
 
   const headers = Object.keys(rows[0]);
 
-  const numericCols = headers.filter(h =>
-    rows.some(row => {
-      const value = Number(row[h]);
-      return !isNaN(value) && value !== null;
-    })
-  );
+  // A column counts as numeric only if most of its values actually look
+  // numeric — not just any single row. A dimension like "classname" can
+  // contain a mix of digit-labeled and Roman-numeral-labeled values
+  // ("10", "2", "VI", "NURSERY"); using .some() there would misclassify
+  // it as a second numeric measure and leave zero label columns to chart.
+  const numericCols = headers.filter(h => {
+    const values = rows
+      .map(row => row[h])
+      .filter(v => v !== "" && v !== null && v !== undefined);
+
+    if (values.length === 0) return false;
+
+    const numericCount = values.filter(v => !isNaN(Number(v))).length;
+    return numericCount / values.length > 0.6;
+  });
 
   const labelCols = headers.filter(h => !numericCols.includes(h));
 

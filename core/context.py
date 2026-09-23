@@ -179,6 +179,39 @@ def refine_question_with_context(question, session, domain_config):
 
         return result
 
+    chart_words = ["chart", "graph", "visual", "visualization", "plot", "dashboard"]
+
+    if _contains_any(q, chart_words) and last_plan.get("task"):
+        # Only treat this as a bare "chart the previous answer" follow-up if
+        # the question doesn't already name its own measure/grouping — e.g.
+        # "show me the chart" should carry forward, but "show pending fees
+        # class-wise as a pie chart" is fully self-sufficient and must be
+        # resolved fresh, not have a stale prior plan stomped onto it.
+        semantic_aliases = domain_config.get("semantic_aliases", {})
+        names_own_measure = any(phrase in q for phrase in semantic_aliases.keys())
+
+        self_sufficient_signals = [
+            "wise", "breakdown", "group by", "grouped by",
+            "highest", "lowest", "top", "bottom"
+        ]
+        is_self_sufficient = names_own_measure or _contains_any(q, self_sufficient_signals)
+
+        if not is_self_sufficient:
+            if new_measure_word:
+                result["carry_measure"] = new_measure_word
+            elif last_measure:
+                result["carry_measure"] = last_measure
+
+            if last_group_by:
+                result["force_group_by"] = last_group_by
+                result["force_limit"] = last_limit
+
+            result["carry_task"] = last_plan.get("task")
+            result["carry_sort_order"] = last_plan.get("sort_order", "desc")
+            result["refined_question"] = question
+
+            return result
+
     return result
 
 

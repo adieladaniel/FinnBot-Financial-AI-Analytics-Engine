@@ -6,6 +6,11 @@ __pycache__/
 fee_compile_dataset_merged_powerbi.json
 
 .env
+img1.png
+img2.png
+img3.png
+img4.png
+img5.png
 
 # C extensions
 *.so

@@ -4,13 +4,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
+import time
 import uuid
 
 from core.loader import load_dataset
 from core.profiler import profile_dataset
 from core.schema_builder import build_schema
 from core.measures_builder import build_measures
-from core.memory import get_session, update_session
+from core.memory import get_session, update_session, append_history
 from core.config_loader import load_domain_config
 from core.api_loader import fetch_api_data_from_curl
 from core.graph import GRAPH
@@ -198,6 +199,18 @@ async def chat(req: ChatRequest):
 
     update_session(session_id, refined_question, plan, result)
 
+    source = final_state.get("source", "rule_based")
+    confidence = final_state.get("confidence", 0.0)
+
+    append_history(session_id, {
+        "question": req.question,
+        "answer": result.get("answer"),
+        "source": source,
+        "confidence": confidence,
+        "row_count": len(result.get("rows", [])),
+        "timestamp": time.time()
+    })
+
     return {
         "question": req.question,
         "normalized_question": final_state.get("question", req.question),
@@ -205,9 +218,18 @@ async def chat(req: ChatRequest):
         "plan": plan,
         "answer": result.get("answer"),
         "rows": result.get("rows", []),
-        "source": final_state.get("source", "rule_based"),
-        "confidence": final_state.get("confidence", 0.0),
+        "source": source,
+        "confidence": confidence,
         "measure_confidence": final_state.get("measure_confidence", 0.0),
         "entity_confidence": final_state.get("entity_confidence", 0.0)
     }
+
+
+@app.get("/history/{session_id}")
+def get_history(session_id: str):
+    if session_id not in DATASETS:
+        return {"error": "Invalid session"}
+
+    session = get_session(session_id)
+    return {"history": list(reversed(session.get("history", [])))}
 

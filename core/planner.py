@@ -49,7 +49,12 @@ def build_plan(question, df, schema, measures, domain_config):
     agg = intent_data["aggregation"]
     is_multi_measure = intent_data.get("is_multi_measure", False)
 
-    if entity and any(x in question.lower() for x in ["max", "min", "highest", "lowest"]):
+    grouping_trigger_words = [
+        "max", "min", "highest", "lowest",
+        "wise", "breakdown", "group by", "grouped by"
+    ]
+
+    if entity and any(x in question.lower() for x in grouping_trigger_words):
         if intent == "value":
             intent = "ranking"
 

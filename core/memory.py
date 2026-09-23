@@ -13,9 +13,15 @@ def get_session(session_id):
             "last_rows": [],
             "last_top_entity_column": None,
             "last_top_entity_value": None,
-            "last_entity_values": []
+            "last_entity_values": [],
+            "history": []
         }
     return SESSION_MEMORY[session_id]
+
+
+def append_history(session_id, entry):
+    session = get_session(session_id)
+    session["history"].append(entry)
 
 
 def update_session(session_id, question=None, plan=None, result=None):
